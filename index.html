@@ -1,0 +1,241 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>OB Performance — Dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#101613; --panel:#1B241E; --panel-2:#212B24; --line:#2E3A31;
+    --ink:#F1EDE2; --muted:#93A08F; --gold:#C9A24D;
+    --win:#4E9A6C; --loss:#B5533C;
+    --fwd:#6B8CAE; --back:#C98A4D;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:'Inter',sans-serif;}
+  .app{display:flex;min-height:100vh;}
+  .rail{width:250px;flex:0 0 250px;background:var(--panel);border-right:1px solid var(--line);
+        padding:20px 0;overflow-y:auto;max-height:100vh;}
+  .rail h1{font-family:'Oswald',sans-serif;font-size:19px;letter-spacing:.3px;margin:0 20px 2px;color:var(--gold);}
+  .rail .sub{margin:0 20px 18px;color:var(--muted);font-size:12px;}
+  .grp-label{padding:10px 20px 6px;font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;}
+  .player-item{display:flex;align-items:center;gap:10px;padding:9px 20px;cursor:pointer;border-left:3px solid transparent;}
+  .player-item:hover{background:var(--panel-2);}
+  .player-item.active{background:var(--panel-2);border-left-color:var(--gold);}
+  .jersey{width:26px;height:26px;border-radius:5px;display:flex;align-items:center;justify-content:center;
+          font-family:'Oswald';font-size:12px;font-weight:600;color:#111;flex:0 0 26px;}
+  .jersey.Forwards{background:var(--fwd);} .jersey.Backs{background:var(--back);}
+  .player-item .name{font-size:13.5px;line-height:1.25;}
+  .player-item .pos{font-size:11px;color:var(--muted);}
+
+  .main{flex:1;padding:34px 44px;max-width:980px;}
+  .head{display:flex;align-items:baseline;gap:16px;margin-bottom:6px;}
+  .head h2{font-family:'Oswald';font-size:34px;margin:0;font-weight:600;}
+  .badge{font-size:12px;padding:4px 10px;border-radius:20px;font-weight:600;letter-spacing:.3px;}
+  .badge.Forwards{background:rgba(107,140,174,.18);color:var(--fwd);}
+  .badge.Backs{background:rgba(201,138,77,.18);color:var(--back);}
+  .subhead{color:var(--muted);font-size:13px;margin-bottom:28px;}
+
+  .section-title{font-family:'Oswald';font-size:14px;letter-spacing:1.2px;text-transform:uppercase;
+                  color:var(--gold);margin:0 0 14px;padding-top:6px;}
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:22px 24px;margin-bottom:26px;}
+
+  .metric-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:14px 24px;}
+  .metric{border-bottom:1px solid var(--line);padding-bottom:10px;}
+  .metric .lbl{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;}
+  .metric .val{font-family:'Oswald';font-size:22px;margin-top:2px;}
+  .metric .val .unit{font-size:12px;color:var(--muted);font-family:'Inter';margin-left:3px;}
+  .metric .bar-track{margin-top:8px;height:5px;border-radius:3px;background:var(--panel-2);overflow:hidden;}
+  .metric .bar-fill{height:100%;border-radius:3px;background:var(--gold);}
+  .metric .cmp{font-size:10.5px;color:var(--muted);margin-top:4px;}
+  .na{color:var(--muted);font-style:italic;font-size:13px;}
+
+  .gps-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:20px;}
+  .gps-card .lbl{font-size:11.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px;}
+  .pair{display:flex;align-items:flex-end;gap:10px;height:100px;}
+  .col{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%;}
+  .colbar{width:100%;border-radius:5px 5px 0 0;min-height:2px;}
+  .colbar.win{background:var(--win);} .colbar.loss{background:var(--loss);}
+  .col .n{font-family:'Oswald';font-size:14px;margin-bottom:4px;}
+  .col .t{font-size:10.5px;color:var(--muted);margin-top:6px;}
+
+  .warn{font-size:12px;color:#D8A15C;background:rgba(201,164,77,.08);border:1px solid rgba(201,164,77,.25);
+        border-radius:8px;padding:10px 14px;margin-bottom:20px;}
+
+  .corr-row{display:flex;align-items:center;gap:12px;padding:9px 0;border-bottom:1px solid var(--line);font-size:13px;}
+  .corr-row:last-child{border-bottom:none;}
+  .corr-row .pair-txt{flex:1;color:var(--ink);}
+  .corr-row .pair-txt b{color:var(--gold);font-weight:600;}
+  .corr-row .rbar-track{width:110px;height:8px;background:var(--panel-2);border-radius:4px;position:relative;overflow:hidden;flex:0 0 110px;}
+  .corr-row .rbar-fill{position:absolute;top:0;bottom:0;border-radius:4px;}
+  .corr-row .rval{width:44px;text-align:right;font-family:'Oswald';font-size:13px;flex:0 0 44px;}
+  .corr-note{font-size:11.5px;color:var(--muted);margin-top:12px;}
+
+  @media (max-width:760px){
+    .app{flex-direction:column;}
+    .rail{width:100%;flex:none;max-height:260px;border-right:none;border-bottom:1px solid var(--line);}
+    .main{padding:24px 18px;}
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="rail" id="rail">
+    <h1>OB Performance</h1>
+    <p class="sub">Tests físicos × rendimiento en partidos</p>
+    <div id="rail-list"></div>
+  </div>
+  <div class="main" id="main"></div>
+</div>
+
+<script>
+const PLAYERS = [{"Jugador": "Antonio Bozzolo", "Nombre_GPS": "A. Bozzolo", "Posicion": "Forwards", "Edad": 23.6, "Masa (kg)": 95.3, "Talla (cm)": 182.0, "Masa Muscular (kg)": 47.945, "Masa Muscular (%)": 50.31, "Masa Grasa (kg)": 13.294, "Masa Grasa (%)": 13.95, "IMC": 3.3124, "1RM Sentadilla (kg)": 160, "1RM Press Banca (kg)": 135, "1RM Peso Muerto (kg)": 190, "1RM Remo (kg)": 120, "Flexibilidad (cm)": 10.0, "30m (s)": 4.23, "Bronco test (min)": 5.57, "IMTP Peak Force (N)": 2376.0, "CMJ Altura (cm)": 38.7, "CMJ RSI-mod": 0.47, "DropJump RSI": 1.91, "GPS Ganados - Distancia (m)": 1699.5, "GPS Ganados - Aceleraciones": 464.30500000000006, "GPS Ganados - Impactos": 2.3333333333333335, "GPS Ganados - PlayerLoad": 231.5049, "GPS Ganados - Vel Max (km/h)": 6.772666666666666, "GPS Perdidos - Distancia (m)": 2783.0, "GPS Perdidos - Aceleraciones": 208.63725, "GPS Perdidos - Impactos": 0.75, "GPS Perdidos - PlayerLoad": 149.44225, "GPS Perdidos - Vel Max (km/h)": 6.4795}, {"Jugador": "Alvaro Castro", "Nombre_GPS": "A.Castro", "Posicion": "Backs", "Edad": 19.0, "Masa (kg)": 89.7, "Talla (cm)": 189.9, "Masa Muscular (kg)": 45.709, "Masa Muscular (%)": 50.96, "Masa Grasa (kg)": 12.818, "Masa Grasa (%)": 14.29, "IMC": 3.6062, "1RM Sentadilla (kg)": 130, "1RM Press Banca (kg)": 100, "1RM Peso Muerto (kg)": 170, "1RM Remo (kg)": 90, "Flexibilidad (cm)": -6.0, "30m (s)": 4.03, "Bronco test (min)": 4.57, "IMTP Peak Force (N)": NaN, "CMJ Altura (cm)": 43.5, "CMJ RSI-mod": 0.41, "DropJump RSI": 2.15, "GPS Ganados - Distancia (m)": 1496.6259142857143, "GPS Ganados - Aceleraciones": 611.2012000000001, "GPS Ganados - Impactos": 2.4, "GPS Ganados - PlayerLoad": 190.83696, "GPS Ganados - Vel Max (km/h)": 11.47598, "GPS Perdidos - Distancia (m)": 3699.6, "GPS Perdidos - Aceleraciones": 757.538, "GPS Perdidos - Impactos": 2.5, "GPS Perdidos - PlayerLoad": 173.26285, "GPS Perdidos - Vel Max (km/h)": 6.497825000000001}, {"Jugador": "Clemente Videla", "Nombre_GPS": "C. Videla", "Posicion": "Backs", "Edad": 25.8, "Masa (kg)": 86.6, "Talla (cm)": 178.0, "Masa Muscular (kg)": 42.754, "Masa Muscular (%)": 49.37, "Masa Grasa (kg)": 13.726, "Masa Grasa (%)": 15.85, "IMC": 3.1684, "1RM Sentadilla (kg)": 130, "1RM Press Banca (kg)": 100, "1RM Peso Muerto (kg)": 190, "1RM Remo (kg)": 100, "Flexibilidad (cm)": 18.0, "30m (s)": 4.18, "Bronco test (min)": 5.06, "IMTP Peak Force (N)": NaN, "CMJ Altura (cm)": 35.2, "CMJ RSI-mod": 0.43, "DropJump RSI": 2.3, "GPS Ganados - Distancia (m)": 20021.773, "GPS Ganados - Aceleraciones": 1165.2945, "GPS Ganados - Impactos": 3.25, "GPS Ganados - PlayerLoad": 290.655175, "GPS Ganados - Vel Max (km/h)": 22.71405, "GPS Perdidos - Distancia (m)": 4408.372333333334, "GPS Perdidos - Aceleraciones": 782.4075, "GPS Perdidos - Impactos": 2.6666666666666665, "GPS Perdidos - PlayerLoad": 194.09683333333336, "GPS Perdidos - Vel Max (km/h)": 12.4961}, {"Jugador": "Gaspar Haddad", "Nombre_GPS": "G. Haddad", "Posicion": "Forwards", "Edad": 20.5, "Masa (kg)": 118.3, "Talla (cm)": 183.0, "Masa Muscular (kg)": 54.955, "Masa Muscular (%)": 46.45, "Masa Grasa (kg)": 21.034, "Masa Grasa (%)": 17.78, "IMC": 3.3489, "1RM Sentadilla (kg)": 190, "1RM Press Banca (kg)": 140, "1RM Peso Muerto (kg)": 190, "1RM Remo (kg)": 120, "Flexibilidad (cm)": 3.0, "30m (s)": NaN, "Bronco test (min)": NaN, "IMTP Peak Force (N)": 3225.0, "CMJ Altura (cm)": 32.6, "CMJ RSI-mod": 0.53, "DropJump RSI": 1.91, "GPS Ganados - Distancia (m)": 2028.3427142857142, "GPS Ganados - Aceleraciones": 53.818375, "GPS Ganados - Impactos": 0.625, "GPS Ganados - PlayerLoad": 133.0109375, "GPS Ganados - Vel Max (km/h)": 11.113600000000002, "GPS Perdidos - Distancia (m)": 2138.2754, "GPS Perdidos - Aceleraciones": 33.533500000000004, "GPS Perdidos - Impactos": 0.0, "GPS Perdidos - PlayerLoad": 99.93984, "GPS Perdidos - Vel Max (km/h)": 6.81562}, {"Jugador": "Gabriel Ljubetic", "Nombre_GPS": "G. Ljubetic", "Posicion": "Forwards", "Edad": 23.3, "Masa (kg)": 89.5, "Talla (cm)": 179.0, "Masa Muscular (kg)": 47.13, "Masa Muscular (%)": 52.66, "Masa Grasa (kg)": 11.358, "Masa Grasa (%)": 12.69, "IMC": 3.2041, "1RM Sentadilla (kg)": 140, "1RM Press Banca (kg)": 125, "1RM Peso Muerto (kg)": 180, "1RM Remo (kg)": 110, "Flexibilidad (cm)": 11.0, "30m (s)": 4.25, "Bronco test (min)": 4.55, "IMTP Peak Force (N)": 2308.0, "CMJ Altura (cm)": 46.2, "CMJ RSI-mod": 0.65, "DropJump RSI": 2.26, "GPS Ganados - Distancia (m)": 2177.840757142857, "GPS Ganados - Aceleraciones": 988.0012, "GPS Ganados - Impactos": 4.8, "GPS Ganados - PlayerLoad": 263.23338, "GPS Ganados - Vel Max (km/h)": 11.86684, "GPS Perdidos - Distancia (m)": 5714.166666666667, "GPS Perdidos - Aceleraciones": 1305.2381999999998, "GPS Perdidos - Impactos": 6.8, "GPS Perdidos - PlayerLoad": 303.9893, "GPS Perdidos - Vel Max (km/h)": 7.764500000000001}, {"Jugador": "Ian Otersen", "Nombre_GPS": "I. Otersen", "Posicion": "Backs", "Edad": 24.8, "Masa (kg)": 93.8, "Talla (cm)": 186.0, "Masa Muscular (kg)": 47.351, "Masa Muscular (%)": 50.48, "Masa Grasa (kg)": 13.592, "Masa Grasa (%)": 14.49, "IMC": 3.4596, "1RM Sentadilla (kg)": 150, "1RM Press Banca (kg)": 110, "1RM Peso Muerto (kg)": 210, "1RM Remo (kg)": 120, "Flexibilidad (cm)": 12.0, "30m (s)": 4.11, "Bronco test (min)": 5.07, "IMTP Peak Force (N)": 3116.0, "CMJ Altura (cm)": 39.0, "CMJ RSI-mod": 0.48, "DropJump RSI": 1.55, "GPS Ganados - Distancia (m)": 7514.503000000001, "GPS Ganados - Aceleraciones": 1387.1938750000002, "GPS Ganados - Impactos": 3.375, "GPS Ganados - PlayerLoad": 308.5794, "GPS Ganados - Vel Max (km/h)": 16.481162500000003, "GPS Perdidos - Distancia (m)": 7040.347333333334, "GPS Perdidos - Aceleraciones": 1409.1111999999998, "GPS Perdidos - Impactos": 5.833333333333333, "GPS Perdidos - PlayerLoad": 293.6320166666667, "GPS Perdidos - Vel Max (km/h)": 12.161816666666667}, {"Jugador": "Julio Blanc", "Nombre_GPS": "J. BLANC", "Posicion": "Backs", "Edad": 26.9, "Masa (kg)": 79.0, "Talla (cm)": 174.0, "Masa Muscular (kg)": 40.858, "Masa Muscular (%)": 51.72, "Masa Grasa (kg)": 9.125, "Masa Grasa (%)": 11.55, "IMC": 3.0276, "1RM Sentadilla (kg)": 150, "1RM Press Banca (kg)": 120, "1RM Peso Muerto (kg)": 190, "1RM Remo (kg)": 110, "Flexibilidad (cm)": 20.0, "30m (s)": 3.94, "Bronco test (min)": 4.5, "IMTP Peak Force (N)": NaN, "CMJ Altura (cm)": 54.7, "CMJ RSI-mod": 0.72, "DropJump RSI": 2.21, "GPS Ganados - Distancia (m)": 4987.6224, "GPS Ganados - Aceleraciones": 904.6912, "GPS Ganados - Impactos": 5.6, "GPS Ganados - PlayerLoad": 229.21016, "GPS Ganados - Vel Max (km/h)": 22.146240000000002, "GPS Perdidos - Distancia (m)": 4053.741666666667, "GPS Perdidos - Aceleraciones": 477.4745, "GPS Perdidos - Impactos": 2.6666666666666665, "GPS Perdidos - PlayerLoad": 184.0205, "GPS Perdidos - Vel Max (km/h)": 12.297866666666666}, {"Jugador": "Juan Fischer", "Nombre_GPS": "J. Fischer", "Posicion": "Forwards", "Edad": 20.0, "Masa (kg)": 87.1, "Talla (cm)": 186.0, "Masa Muscular (kg)": 43.945, "Masa Muscular (%)": 50.45, "Masa Grasa (kg)": 11.21, "Masa Grasa (%)": 12.87, "IMC": 3.4596, "1RM Sentadilla (kg)": 110, "1RM Press Banca (kg)": 95, "1RM Peso Muerto (kg)": 140, "1RM Remo (kg)": 100, "Flexibilidad (cm)": 24.0, "30m (s)": 4.72, "Bronco test (min)": 4.55, "IMTP Peak Force (N)": 2440.0, "CMJ Altura (cm)": 35.7, "CMJ RSI-mod": 0.43, "DropJump RSI": 1.81, "GPS Ganados - Distancia (m)": 46729.2, "GPS Ganados - Aceleraciones": 428.862875, "GPS Ganados - Impactos": 3.0, "GPS Ganados - PlayerLoad": 191.1723, "GPS Ganados - Vel Max (km/h)": 4.129475, "GPS Perdidos - Distancia (m)": 6029.0268, "GPS Perdidos - Aceleraciones": 668.62425, "GPS Perdidos - Impactos": 2.4, "GPS Perdidos - PlayerLoad": 292.5509, "GPS Perdidos - Vel Max (km/h)": 9.89198}, {"Jugador": "Lucas Haddad", "Nombre_GPS": "L. Haddad", "Posicion": "Forwards", "Edad": 24.7, "Masa (kg)": 108.8, "Talla (cm)": 185.0, "Masa Muscular (kg)": 56.926, "Masa Muscular (%)": 52.32, "Masa Grasa (kg)": 13.633, "Masa Grasa (%)": 12.53, "IMC": 3.4225, "1RM Sentadilla (kg)": 180, "1RM Press Banca (kg)": 130, "1RM Peso Muerto (kg)": 200, "1RM Remo (kg)": 125, "Flexibilidad (cm)": 21.0, "30m (s)": 4.75, "Bronco test (min)": 6.15, "IMTP Peak Force (N)": 2198.0, "CMJ Altura (cm)": 43.5, "CMJ RSI-mod": 0.47, "DropJump RSI": 1.97, "GPS Ganados - Distancia (m)": 4521.506928571429, "GPS Ganados - Aceleraciones": 314.62025, "GPS Ganados - Impactos": 1.375, "GPS Ganados - PlayerLoad": 246.53618749999998, "GPS Ganados - Vel Max (km/h)": 12.050287500000001, "GPS Perdidos - Distancia (m)": 5499.386833333333, "GPS Perdidos - Aceleraciones": 346.41060000000004, "GPS Perdidos - Impactos": 1.1666666666666667, "GPS Perdidos - PlayerLoad": 249.44425, "GPS Perdidos - Vel Max (km/h)": 8.453783333333332}, {"Jugador": "Matias Litvak", "Nombre_GPS": "M. Litvak", "Posicion": "Forwards", "Edad": 22.0, "Masa (kg)": 96.5, "Talla (cm)": 174.0, "Masa Muscular (kg)": 44.293, "Masa Muscular (%)": 45.9, "Masa Grasa (kg)": 20.477, "Masa Grasa (%)": 21.22, "IMC": 3.0276, "1RM Sentadilla (kg)": 120, "1RM Press Banca (kg)": 110, "1RM Peso Muerto (kg)": 170, "1RM Remo (kg)": 100, "Flexibilidad (cm)": 5.0, "30m (s)": 4.8, "Bronco test (min)": 6.05, "IMTP Peak Force (N)": 2407.0, "CMJ Altura (cm)": 31.1, "CMJ RSI-mod": 0.41, "DropJump RSI": 1.76, "GPS Ganados - Distancia (m)": 3684.256125, "GPS Ganados - Aceleraciones": 249.595875, "GPS Ganados - Impactos": 1.5, "GPS Ganados - PlayerLoad": 213.6299875, "GPS Ganados - Vel Max (km/h)": 11.969400000000002, "GPS Perdidos - Distancia (m)": 3859.3484, "GPS Perdidos - Aceleraciones": 99.2775, "GPS Perdidos - Impactos": 0.4, "GPS Perdidos - PlayerLoad": 140.28007999999997, "GPS Perdidos - Vel Max (km/h)": 9.067379999999998}, {"Jugador": "Patrick Muller", "Nombre_GPS": "P. Muller", "Posicion": "Backs", "Edad": 36.5, "Masa (kg)": 90.0, "Talla (cm)": 184.5, "Masa Muscular (kg)": 44.003, "Masa Muscular (%)": 48.89, "Masa Grasa (kg)": 14.193, "Masa Grasa (%)": 15.77, "IMC": 3.404, "1RM Sentadilla (kg)": 135, "1RM Press Banca (kg)": 110, "1RM Peso Muerto (kg)": 180, "1RM Remo (kg)": 95, "Flexibilidad (cm)": -14.0, "30m (s)": 4.61, "Bronco test (min)": 6.05, "IMTP Peak Force (N)": 2516.0, "CMJ Altura (cm)": 35.0, "CMJ RSI-mod": 0.44, "DropJump RSI": 2.13, "GPS Ganados - Distancia (m)": 1380.0661666666667, "GPS Ganados - Aceleraciones": 180.55700000000002, "GPS Ganados - Impactos": 0.8333333333333334, "GPS Ganados - PlayerLoad": 71.97276666666666, "GPS Ganados - Vel Max (km/h)": 4.115733333333334, "GPS Perdidos - Distancia (m)": 3763.93275, "GPS Perdidos - Aceleraciones": 635.359, "GPS Perdidos - Impactos": 2.75, "GPS Perdidos - PlayerLoad": 169.66815, "GPS Perdidos - Vel Max (km/h)": 10.077950000000001}, {"Jugador": "Benjamín De Vits", "Nombre_GPS": "B. Devits", "Posicion": "Backs", "Edad": 26.7, "Masa (kg)": 75.5, "Talla (cm)": 172.0, "Masa Muscular (kg)": 40.653, "Masa Muscular (%)": 53.84, "Masa Grasa (kg)": 7.912, "Masa Grasa (%)": 10.48, "IMC": 2.9584, "1RM Sentadilla (kg)": 120, "1RM Press Banca (kg)": 100, "1RM Peso Muerto (kg)": 170, "1RM Remo (kg)": 90, "Flexibilidad (cm)": 16.0, "30m (s)": 3.92, "Bronco test (min)": 5.58, "IMTP Peak Force (N)": NaN, "CMJ Altura (cm)": 50.2, "CMJ RSI-mod": 0.62, "DropJump RSI": 1.83, "GPS Ganados - Distancia (m)": 2846.991, "GPS Ganados - Aceleraciones": 1044.479, "GPS Ganados - Impactos": 1.0, "GPS Ganados - PlayerLoad": 277.71659999999997, "GPS Ganados - Vel Max (km/h)": 20.064149999999998, "GPS Perdidos - Distancia (m)": 2347.0, "GPS Perdidos - Aceleraciones": 666.661, "GPS Perdidos - Impactos": 2.0, "GPS Perdidos - PlayerLoad": 172.43735, "GPS Perdidos - Vel Max (km/h)": 4.63115}, {"Jugador": "Nicolas Ovalle", "Nombre_GPS": "C. Ovalle", "Posicion": "Forwards", "Edad": 25.6, "Masa (kg)": 131.4, "Talla (cm)": 190.0, "Masa Muscular (kg)": 52.998, "Masa Muscular (%)": 40.33, "Masa Grasa (kg)": 35.977, "Masa Grasa (%)": 27.38, "IMC": 3.61, "1RM Sentadilla (kg)": 180, "1RM Press Banca (kg)": 115, "1RM Peso Muerto (kg)": 190, "1RM Remo (kg)": 110, "Flexibilidad (cm)": 1.0, "30m (s)": 4.98, "Bronco test (min)": 6.3, "IMTP Peak Force (N)": 3203.0, "CMJ Altura (cm)": 32.9, "CMJ RSI-mod": 0.35, "DropJump RSI": 1.37, "GPS Ganados - Distancia (m)": 4774.0265, "GPS Ganados - Aceleraciones": 131.952125, "GPS Ganados - Impactos": 1.875, "GPS Ganados - PlayerLoad": 231.5173, "GPS Ganados - Vel Max (km/h)": 10.7481625, "GPS Perdidos - Distancia (m)": 5448.1936000000005, "GPS Perdidos - Aceleraciones": 216.195, "GPS Perdidos - Impactos": 0.4, "GPS Perdidos - PlayerLoad": 276.82329999999996, "GPS Perdidos - Vel Max (km/h)": 9.43084}, {"Jugador": "Domingo Bustamante", "Nombre_GPS": "M. Bustamante", "Posicion": "Backs", "Edad": 22.0, "Masa (kg)": 75.6, "Talla (cm)": 180.0, "Masa Muscular (kg)": 37.764, "Masa Muscular (%)": 49.95, "Masa Grasa (kg)": 9.352, "Masa Grasa (%)": 12.37, "IMC": 3.24, "1RM Sentadilla (kg)": 140, "1RM Press Banca (kg)": 100, "1RM Peso Muerto (kg)": 180, "1RM Remo (kg)": 90, "Flexibilidad (cm)": NaN, "30m (s)": 4.4, "Bronco test (min)": 5.3, "IMTP Peak Force (N)": 2305.0, "CMJ Altura (cm)": 40.7, "CMJ RSI-mod": 0.37, "DropJump RSI": NaN, "GPS Ganados - Distancia (m)": 2086.875, "GPS Ganados - Aceleraciones": 982.6463333333335, "GPS Ganados - Impactos": 2.6666666666666665, "GPS Ganados - PlayerLoad": 259.18806666666666, "GPS Ganados - Vel Max (km/h)": 8.0934, "GPS Perdidos - Distancia (m)": 5078.333333333333, "GPS Perdidos - Aceleraciones": 1026.4116000000001, "GPS Perdidos - Impactos": 3.2, "GPS Perdidos - PlayerLoad": 264.02941999999996, "GPS Perdidos - Vel Max (km/h)": 8.7903}, {"Jugador": "Vicho Ayarrza", "Nombre_GPS": "V. Ayarza", "Posicion": "Forwards", "Edad": 26.6, "Masa (kg)": 109.7, "Talla (cm)": 190.0, "Masa Muscular (kg)": 54.462, "Masa Muscular (%)": 49.65, "Masa Grasa (kg)": 16.4, "Masa Grasa (%)": 14.95, "IMC": 3.61, "1RM Sentadilla (kg)": 180, "1RM Press Banca (kg)": 130, "1RM Peso Muerto (kg)": 230, "1RM Remo (kg)": 110, "Flexibilidad (cm)": 13.0, "30m (s)": 4.77, "Bronco test (min)": 6.3, "IMTP Peak Force (N)": 3067.0, "CMJ Altura (cm)": 35.0, "CMJ RSI-mod": 0.42, "DropJump RSI": 1.24, "GPS Ganados - Distancia (m)": 5458.3755, "GPS Ganados - Aceleraciones": 553.7726666666666, "GPS Ganados - Impactos": 6.333333333333333, "GPS Ganados - PlayerLoad": 229.03855000000001, "GPS Ganados - Vel Max (km/h)": 16.557016666666666, "GPS Perdidos - Distancia (m)": 4549.215, "GPS Perdidos - Aceleraciones": 267.3205, "GPS Perdidos - Impactos": 4.666666666666667, "GPS Perdidos - PlayerLoad": 134.64126666666667, "GPS Perdidos - Vel Max (km/h)": 12.290333333333335}];
+const CORR = [{"Test fisico": "30m (s)", "Metrica GPS": "GPS Ganados - Aceleraciones", "n": 14, "r": -0.76}, {"Test fisico": "Masa (kg)", "Metrica GPS": "GPS Ganados - Aceleraciones", "n": 15, "r": -0.65}, {"Test fisico": "Flexibilidad (cm)", "Metrica GPS": "GPS Ganados - PlayerLoad", "n": 14, "r": 0.65}, {"Test fisico": "Bronco test (min)", "Metrica GPS": "GPS Perdidos - Aceleraciones", "n": 14, "r": -0.61}, {"Test fisico": "Masa Grasa (kg)", "Metrica GPS": "GPS Ganados - Aceleraciones", "n": 15, "r": -0.59}, {"Test fisico": "Masa Muscular (%)", "Metrica GPS": "GPS Ganados - Aceleraciones", "n": 15, "r": 0.57}, {"Test fisico": "Bronco test (min)", "Metrica GPS": "GPS Ganados - Aceleraciones", "n": 14, "r": -0.57}, {"Test fisico": "Masa (kg)", "Metrica GPS": "GPS Perdidos - Aceleraciones", "n": 15, "r": -0.56}, {"Test fisico": "Masa Grasa (%)", "Metrica GPS": "GPS Ganados - Aceleraciones", "n": 15, "r": -0.54}, {"Test fisico": "Masa Muscular (kg)", "Metrica GPS": "GPS Ganados - Aceleraciones", "n": 15, "r": -0.53}];
+
+function fmt(v, d=1){
+  if(v===null || v===undefined || isNaN(v)) return null;
+  return Number(v).toFixed(d);
+}
+function avg(arr){ const v=arr.filter(x=>x!==null && x!==undefined && !isNaN(x)); return v.length? v.reduce((a,b)=>a+b,0)/v.length : null; }
+
+const teamAvg = {};
+['Masa (kg)','Talla (cm)','Masa Muscular (kg)','Masa Muscular (%)','Masa Grasa (%)','1RM Sentadilla (kg)','1RM Press Banca (kg)',
+ '1RM Peso Muerto (kg)','1RM Remo (kg)','30m (s)','Flexibilidad (cm)','Bronco test (min)',
+ 'IMTP Peak Force (N)','CMJ Altura (cm)','DropJump RSI'].forEach(k=>{
+  teamAvg[k] = avg(PLAYERS.map(p=>p[k]));
+});
+
+let current = PLAYERS[0].Jugador;
+
+function renderRail(){
+  const groups = {Forwards:[], Backs:[]};
+  PLAYERS.slice().sort((a,b)=>a.Jugador.localeCompare(b.Jugador)).forEach(p=>groups[p.Posicion].push(p));
+  let html = '';
+  ['Forwards','Backs'].forEach(pos=>{
+    html += `<div class="grp-label">${pos}</div>`;
+    groups[pos].forEach(p=>{
+      const initials = p.Jugador.split(' ').map(w=>w[0]).slice(0,2).join('');
+      html += `<div class="player-item ${p.Jugador===current?'active':''}" data-name="${p.Jugador}">
+        <div class="jersey ${p.Posicion}">${initials}</div>
+        <div><div class="name">${p.Jugador}</div><div class="pos">${p.Posicion}</div></div>
+      </div>`;
+    });
+  });
+  document.getElementById('rail-list').innerHTML = html;
+  document.querySelectorAll('.player-item').forEach(el=>{
+    el.addEventListener('click', ()=>{ current = el.dataset.name; renderRail(); renderMain(); });
+  });
+}
+
+function metricRow(label, val, unit, key, decimals=1, higherIsBetter=true){
+  const v = fmt(val, decimals);
+  const ta = teamAvg[key];
+  if(v===null){
+    return `<div class="metric"><div class="lbl">${label}</div><div class="na">sin dato</div></div>`;
+  }
+  let pct = 50, cmp = '';
+  if(ta && ta!==0){
+    const ratio = val/ta;
+    pct = Math.max(6, Math.min(100, ratio*50));
+    const diff = ((val-ta)/ta*100);
+    const sign = diff>=0? '+':'';
+    cmp = `${sign}${diff.toFixed(0)}% vs promedio equipo`;
+  }
+  return `<div class="metric">
+    <div class="lbl">${label}</div>
+    <div class="val">${v}<span class="unit">${unit}</span></div>
+    <div class="bar-track"><div class="bar-fill" style="width:${pct}%"></div></div>
+    <div class="cmp">${cmp}</div>
+  </div>`;
+}
+
+function gpsPair(label, winVal, lossVal, unit, decimals=0){
+  const w = fmt(winVal, decimals), l = fmt(lossVal, decimals);
+  if(w===null && l===null){
+    return `<div class="gps-card"><div class="lbl">${label}</div><div class="na">sin dato</div></div>`;
+  }
+  const max = Math.max(winVal||0, lossVal||0, 0.0001);
+  const wh = winVal? Math.max(6,(winVal/max)*100) : 2;
+  const lh = lossVal? Math.max(6,(lossVal/max)*100) : 2;
+  return `<div class="gps-card">
+    <div class="lbl">${label}</div>
+    <div class="pair">
+      <div class="col"><div class="n">${w??'–'}</div><div class="colbar win" style="height:${wh}%"></div><div class="t">Ganados</div></div>
+      <div class="col"><div class="n">${l??'–'}</div><div class="colbar loss" style="height:${lh}%"></div><div class="t">Perdidos</div></div>
+    </div>
+  </div>`;
+}
+
+function corrLabel(s){
+  return s.replace('GPS Ganados - ','G · ').replace('GPS Perdidos - ','P · ');
+}
+
+function renderCorr(){
+  let rows = CORR.slice(0,10).map(c=>{
+    const width = Math.abs(c.r)*50; // r in [-1,1] -> up to 50% each side
+    const positive = c.r >= 0;
+    const left = positive ? 55 : 55-width;
+    return `<div class="corr-row">
+      <div class="pair-txt"><b>${c['Test fisico']}</b> ↔ ${corrLabel(c['Metrica GPS'])} <span style="color:var(--muted)">(n=${c.n})</span></div>
+      <div class="rbar-track"><div class="rbar-fill" style="left:${left}%; width:${width}%; background:${positive?'var(--win)':'var(--loss)'}"></div></div>
+      <div class="rval" style="color:${positive?'var(--win)':'var(--loss)'}">${c.r>0?'+':''}${c.r}</div>
+    </div>`;
+  }).join('');
+  return `<div class="panel">
+    <div class="section-title">Relación tests físicos ↔ rendimiento en partidos (equipo, n≤15)</div>
+    ${rows}
+    <div class="corr-note">Correlación de Pearson entre cada test físico y las métricas GPS promedio en partidos ganados/perdidos. Con esta muestra (n≈14–15) son señales orientativas, no relaciones confirmadas.</div>
+  </div>`;
+}
+
+function renderMain(){
+  const p = PLAYERS.find(x=>x.Jugador===current);
+  const outlierNote = (p.Jugador==='Juan Fischer' || p.Jugador==='Clemente Videla')
+    ? `<div class="warn">⚠ La distancia GPS en partidos ganados de este jugador es un valor atípico en el archivo original (posible error de tipeo) — revisar la fuente antes de usarla en un informe.</div>` : '';
+
+  document.getElementById('main').innerHTML = `
+    <div class="head">
+      <h2>${p.Jugador}</h2>
+      <span class="badge ${p.Posicion}">${p.Posicion}</span>
+    </div>
+    <div class="subhead">${fmt(p.Edad,1)||'–'} años · ${fmt(p['Masa (kg)'],1)||'–'} kg · ${fmt(p['Talla (cm)'],0)||'–'} cm</div>
+
+    ${outlierNote}
+
+    <div class="section-title">Perfil físico</div>
+    <div class="panel metric-grid">
+      ${metricRow('Masa muscular (kg)', p['Masa Muscular (kg)'], 'kg', 'Masa Muscular (kg)', 1)}
+      ${metricRow('Masa muscular (%)', p['Masa Muscular (%)'], '%', 'Masa Muscular (%)', 1)}
+      ${metricRow('Masa grasa (%)', p['Masa Grasa (%)'], '%', 'Masa Grasa (%)', 1)}
+      ${metricRow('1RM Sentadilla', p['1RM Sentadilla (kg)'], 'kg', '1RM Sentadilla (kg)', 0)}
+      ${metricRow('1RM Press banca', p['1RM Press Banca (kg)'], 'kg', '1RM Press Banca (kg)', 0)}
+      ${metricRow('1RM Peso muerto', p['1RM Peso Muerto (kg)'], 'kg', '1RM Peso Muerto (kg)', 0)}
+      ${metricRow('1RM Remo', p['1RM Remo (kg)'], 'kg', '1RM Remo (kg)', 0)}
+      ${metricRow('30 metros', p['30m (s)'], 's', '30m (s)', 2)}
+      ${metricRow('Bronco test', p['Bronco test (min)'], 'min', 'Bronco test (min)', 2)}
+      ${metricRow('Flexibilidad', p['Flexibilidad (cm)'], 'cm', 'Flexibilidad (cm)', 0)}
+      ${metricRow('CMJ altura', p['CMJ Altura (cm)'], 'cm', 'CMJ Altura (cm)', 1)}
+      ${metricRow('IMTP fuerza pico', p['IMTP Peak Force (N)'], 'N', 'IMTP Peak Force (N)', 0)}
+      ${metricRow('DropJump RSI', p['DropJump RSI'], '', 'DropJump RSI', 2)}
+    </div>
+
+    <div class="section-title">Rendimiento GPS: partidos ganados vs perdidos</div>
+    <div class="panel gps-grid">
+      ${gpsPair('Distancia', p['GPS Ganados - Distancia (m)'], p['GPS Perdidos - Distancia (m)'], 'm', 0)}
+      ${gpsPair('Aceleraciones', p['GPS Ganados - Aceleraciones'], p['GPS Perdidos - Aceleraciones'], '', 0)}
+      ${gpsPair('Impactos', p['GPS Ganados - Impactos'], p['GPS Perdidos - Impactos'], '', 1)}
+      ${gpsPair('Player Load', p['GPS Ganados - PlayerLoad'], p['GPS Perdidos - PlayerLoad'], '', 0)}
+      ${gpsPair('Vel. máxima', p['GPS Ganados - Vel Max (km/h)'], p['GPS Perdidos - Vel Max (km/h)'], 'km/h', 1)}
+    </div>
+
+    ${renderCorr()}
+  `;
+}
+
+renderRail();
+renderMain();
+</script>
+</body>
+</html>
